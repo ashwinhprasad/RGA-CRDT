@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "node --loader ts-node/esm src/index.ts",
-    "watch": "node --loader ts-node/esm --watch src/index.ts"
+    "watch": "node --loader ts-node/esm --watch src/index.ts",
+    "test": "vitest",
+    "test:watch": "vitest --watch"
   },
   "keywords": [],
   "author": "",

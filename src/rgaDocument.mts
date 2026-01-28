@@ -102,7 +102,10 @@ export class RgaDocument {
 
   private insertOrdered(list: RgaNode[], node: RgaNode): void {
     let i = 0;
-    while (i < list.length && list[i].id.compare(node.id) < 0) {
+    while (i < list.length) {
+      const current = list[i];
+      if (!current) break;
+      if (current.id.compare(node.id) >= 0) break;
       i++;
     }
     list.splice(i, 0, node);

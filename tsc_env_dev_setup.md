@@ -4,7 +4,7 @@
 docker run -it --rm \
   -v $(pwd):/app \
   -w /app \
-  -p 9229:9229 \
+  --network=host \
   node:22-bullseye \
   bash
 ```
