@@ -28,9 +28,11 @@ Because all replicas apply the same deterministic rules, they **eventually conve
 
 This implementation is split into three main layers:
 
+```
 Replica (RgaReplica)
 └── Document (RgaDocument)
 └── Nodes (RgaNode, internal)
+```
 
 ### Core ideas:
 - **Identifiers** are `(counter, replicaId)` pairs
@@ -43,6 +45,7 @@ Replica (RgaReplica)
 
 ## Project Structure
 
+```
 src/
 ├── identifier.mts # Unique ID logic
 ├── operation.mts # Insert / Delete operations
@@ -50,6 +53,7 @@ src/
 ├── rgaReplica.mts # Replica + clock management
 tests/
 └── rga.spec.mts # Unit tests for RGA behavior
+```
 
 ## Limitations (Intentional)
 
