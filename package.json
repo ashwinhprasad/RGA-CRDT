@@ -4,12 +4,13 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "lerna run build",
     "dev": "node --loader ts-node/esm src/index.ts",
     "watch": "node --loader ts-node/esm --watch src/index.ts",
     "test": "vitest",
     "test:watch": "vitest --watch",
-    "test:debug": "vitest --inspect-brk=127.0.0.1:3000 --no-file-parallelism"
+    "test:debug": "vitest --inspect-brk=127.0.0.1:3000 --no-file-parallelism",
+    "bootstrap": "lerna bootstrap"
   },
   "keywords": [],
   "author": "",
@@ -18,7 +19,11 @@
     "@types/node": "^25.0.10",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "lerna": "^8.1.2"
   },
-  "type": "module"
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ]
 }
