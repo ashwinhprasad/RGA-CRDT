@@ -1,6 +1,16 @@
 export type ReplicaId = number;
 export type CRDTId = [replicaId: ReplicaId, counter: number] | "HEAD";
 
+export type RGAElementJSON<T> = {
+    id: CRDTId;
+    after: CRDTId;
+    deleted: boolean;
+    value: T | unknown;
+    children: RGAElementJSON<T>[];
+};
+
+export type RGAJSON<T> = RGAElementJSON<T>;
+
 function idEquals(a: CRDTId, b: CRDTId): boolean {
   return JSON.stringify(a) === JSON.stringify(b);
 }
@@ -29,6 +39,27 @@ export class RGAElement<T = string> {
     insertChild(child: RGAElement<T>) {
         this.children.push(child);
         this.children.sort((a, b) => compareIds(a.id, b.id));
+    }
+
+    toJSON(): RGAElementJSON<T> {
+        const value =
+            this.value && typeof (this.value as any).toJSON === "function"
+                ? (this.value as any).toJSON()
+                : this.value;
+
+        return {
+            id: this.id,
+            after: this.after,
+            deleted: this.deleted,
+            value,
+            children: this.children.map(
+                (child): RGAElementJSON<T> => child.toJSON()
+            )
+        };
+    }
+
+    toJson() {
+        return this.toJSON();
     }
 }
 
@@ -123,6 +154,14 @@ export class RGA<T = string> {
 
         traverse(this.head);
         return last;
+    }
+
+    toJSON(): RGAJSON<T> {
+        return this.head.toJSON();
+    }
+
+    toJson() {
+        return this.toJSON();
     }
 
 

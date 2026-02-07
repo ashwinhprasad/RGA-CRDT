@@ -1,19 +1,39 @@
 
 import { CRDTId, ReplicaId, RGA, RGAElement } from "./rga.mjs";
-import { Block, CRDTOp, ParagraphBlock } from "./block.mjs";  
+import {
+  Block,
+  CRDTOp,
+  ListBlock,
+  ParagraphBlock,
+  TableBlock
+} from "./block.mjs";
 
 
 export class CRDTDocument {
-  constructor(
-    public type: "document",
-    public replicaId: ReplicaId,
-    public clock: number,
-    public blocks: RGA<Block>
-  ) {}
+  public readonly type = "document";
+  public readonly replicaId: ReplicaId;
+  private clock: number;
+  private blocks: RGA<Block>;
+
+  constructor(replicaId: ReplicaId) {
+    this.replicaId = replicaId;
+    this.clock = 0;
+    this.blocks = new RGA<Block>();
+  }
+
+  private static fromState(
+    replicaId: ReplicaId,
+    clock: number,
+    blocks: RGA<Block>
+  ): CRDTDocument {
+    const doc = new CRDTDocument(replicaId);
+    doc.clock = clock;
+    doc.blocks = blocks;
+    return doc;
+  }
 
   fork(newReplicaId: ReplicaId) {
-    return new CRDTDocument(
-      "document",
+    return CRDTDocument.fromState(
       newReplicaId,
       this.clock,
       this.blocks.clone()
@@ -72,12 +92,59 @@ export class CRDTDocument {
         }
         break;
       }
+
+      case "insert_list_item":
+      case "delete_list_item":
+      case "insert_list_char":
+      case "delete_list_char": {
+        const blockEl = this.blocks.getElement(op.blockId);
+        if (!blockEl || blockEl.deleted) return;
+
+        const block = blockEl.value;
+        if (block instanceof ListBlock) {
+          block.apply(op);
+        }
+        break;
+      }
+
+      case "insert_row":
+      case "delete_row":
+      case "insert_column":
+      case "delete_column":
+      case "insert_cell_char":
+      case "delete_cell_char": {
+        const blockEl = this.blocks.getElement(op.blockId);
+        if (!blockEl || blockEl.deleted) return;
+
+        const block = blockEl.value;
+        if (block instanceof TableBlock) {
+          block.apply(op);
+        }
+        break;
+      }
     }
   }
 
 
   lastBlockId(): CRDTId {
     return this.blocks.lastVisibleId();
+  }
+
+  visibleBlocks(): Block[] {
+    return this.blocks.visible();
+  }
+
+  toJSON() {
+    return {
+      type: this.type,
+      replicaId: this.replicaId,
+      clock: this.clock,
+      blocks: this.blocks.toJSON()
+    };
+  }
+
+  toJson() {
+    return this.toJSON();
   }
 
 }
