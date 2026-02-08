@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CRDT Text Demo</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0f172a;
+        --card: #111827;
+        --border: #1f2937;
+        --accent: #22c55e;
+        --muted: #94a3b8;
+      }
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        margin: 0;
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      .container {
+        max-width: 1200px;
+        margin: 32px auto;
+        padding: 0 20px 40px;
+        display: grid;
+        gap: 16px;
+      }
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+      }
+      .tabs {
+        display: inline-flex;
+        gap: 8px;
+        background: #0b1220;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        padding: 4px;
+      }
+      .tab {
+        padding: 6px 14px;
+        border-radius: 999px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #e2e8f0;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .tab.active {
+        background: rgba(34, 197, 94, 0.2);
+        border-color: rgba(34, 197, 94, 0.35);
+        color: #d1fae5;
+      }
+      .tab-panel {
+        display: none;
+      }
+      .tab-panel.active {
+        display: grid;
+        gap: 16px;
+      }
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
+      .pill {
+        background: rgba(34, 197, 94, 0.15);
+        color: var(--accent);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+      }
+      .grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 16px;
+      }
+      .card h2,
+      .card strong {
+        color: #f8fafc;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      input[type="text"] {
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      select {
+        padding: 8px 10px;
+        font-size: 14px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      textarea {
+        width: 100%;
+        padding: 10px;
+        font-size: 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0b1220;
+        color: #e2e8f0;
+        resize: vertical;
+      }
+      button {
+        padding: 10px 14px;
+        font-size: 14px;
+        cursor: pointer;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        background: #0b1220;
+        color: #e2e8f0;
+      }
+      button.primary {
+        background: var(--accent);
+        color: #052e16;
+        border-color: transparent;
+      }
+      pre {
+        margin: 0;
+        padding: 12px;
+        background: #0b1220;
+        color: #e5e7eb;
+        overflow: auto;
+        border-radius: 8px;
+        max-height: 280px;
+        font-size: 12px;
+      }
+      .text-output {
+        font-size: 22px;
+        padding: 10px 12px;
+        background: #0b1220;
+        border-radius: 8px;
+        min-height: 32px;
+        border: 1px solid var(--border);
+      }
+      .muted {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .tree {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+        line-height: 1.4;
+        background: #0b1220;
+        border-radius: 8px;
+        padding: 12px;
+        border: 1px solid var(--border);
+        max-height: 300px;
+        overflow: auto;
+      }
+      .tree ul {
+        list-style: none;
+        padding-left: 16px;
+        margin: 4px 0;
+      }
+      .tree li::before {
+        content: "├─";
+        margin-right: 6px;
+        color: #475569;
+      }
+      .node-deleted {
+        color: #ef4444;
+      }
+      .replica-grid {
+        display: grid;
+        gap: 16px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+      .replica-card[data-replica="A"] { border-color: #60a5fa; }
+      .replica-card[data-replica="B"] { border-color: #f472b6; }
+      .replica-card[data-replica="C"] { border-color: #34d399; }
+      .replica-card.replica-active {
+        box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.25), 0 0 24px rgba(34, 197, 94, 0.2);
+        border-color: #22c55e;
+      }
+      .replica-title {
+        font-size: 16px;
+        font-weight: 600;
+      }
+      .replica-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+      }
+      .badge {
+        font-size: 12px;
+        padding: 2px 8px;
+        border-radius: 999px;
+        background: #0b1220;
+        border: 1px solid var(--border);
+      }
+      .replica-output {
+        margin-top: 8px;
+        font-size: 16px;
+        padding: 8px;
+        border-radius: 8px;
+        background: #0b1220;
+        border: 1px solid var(--border);
+      }
+      .replica-output span.spotlight {
+        background: rgba(34, 197, 94, 0.2);
+        color: #d1fae5;
+        border-radius: 4px;
+        padding: 0 2px;
+      }
+      .presence {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .presence-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 6px;
+      }
+      .op-row {
+        padding: 6px 0;
+        border-bottom: 1px dashed #1f2937;
+      }
+      .op-row.active {
+        color: var(--accent);
+      }
+      .op-row.pulse {
+        animation: pulse 0.35s ease-in-out;
+      }
+      @keyframes pulse {
+        0% { background: rgba(34, 197, 94, 0.2); }
+        100% { background: transparent; }
+      }
+      .timeline {
+        max-height: 360px;
+        overflow: auto;
+      }
+      #live-editor {
+        min-height: 240px;
+        font-size: 18px;
+      }
+      .tree li[data-id]::before {
+        content: "•";
+        margin-right: 6px;
+        color: #64748b;
+      }
+      .tree li[data-replica="A"]::before { color: #60a5fa; }
+      .tree li[data-replica="B"]::before { color: #f472b6; }
+      .tree li[data-replica="C"]::before { color: #34d399; }
+      .tree li.tombstone {
+        text-decoration: none;
+      }
+      .tree li.tombstone * {
+        text-decoration: none;
+      }
+      .tree li.tombstone > .tombstone-label {
+        text-decoration: line-through;
+      }
+      .tree li.spotlight {
+        background: rgba(34, 197, 94, 0.12);
+        border-radius: 6px;
+        padding: 2px 4px;
+      }
+      .tree-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 4px 6px;
+        border-radius: 6px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        font-size: 12px;
+      }
+      .tree-row:nth-child(odd) {
+        background: rgba(15, 23, 42, 0.35);
+      }
+      .tree-node-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 26px;
+        padding: 2px 6px;
+        border-radius: 999px;
+        font-size: 11px;
+        color: #0b1220;
+      }
+      .tree-node-label {
+        font-weight: 600;
+        color: #e2e8f0;
+      }
+      .tree-node-meta {
+        margin-left: auto;
+        color: #94a3b8;
+        font-size: 11px;
+      }
+      .tree-node-deleted .tree-node-label {
+        text-decoration: line-through;
+        color: #fca5a5;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div>
+          <h1>RGA Text CRDT Simulator</h1>
+          <div class="muted">Deterministic scenarios and live collaboration.</div>
+        </div>
+        <div class="row">
+          <div class="tabs">
+            <button class="tab" data-tab="scenarios">Deterministic Playground</button>
+            <button class="tab active" data-tab="realtime">Realtime Simulation</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-scenarios" class="tab-panel">
+        <div class="card">
+          <strong>Character-level RGA overview</strong>
+          <div class="muted" style="margin-top: 8px;">
+            Each character is a node with id $(counter, replicaId)$. Inserts reference a previous id; concurrent
+            inserts create siblings. A deterministic order makes all replicas converge to the same text.
+          </div>
+        </div>
+
+        <div class="replica-grid">
+          <div class="card replica-card" data-replica="A">
+            <div class="replica-header">
+              <strong class="replica-title">Replica A</strong>
+              <span class="badge">Clock: <span class="replica-clock">0</span></span>
+              <span class="badge replica-status">Online</span>
+              <button class="replica-toggle">Go offline</button>
+            </div>
+            <textarea rows="3" placeholder="Edit as replica A"></textarea>
+            <div class="replica-output">(empty)</div>
+            <div class="muted">Last op: <span class="replica-lastop">—</span></div>
+            <div class="timeline replica-timeline"></div>
+          </div>
+          <div class="card replica-card" data-replica="B">
+            <div class="replica-header">
+              <strong class="replica-title">Replica B</strong>
+              <span class="badge">Clock: <span class="replica-clock">0</span></span>
+              <span class="badge replica-status">Online</span>
+              <button class="replica-toggle">Go offline</button>
+            </div>
+            <textarea rows="3" placeholder="Edit as replica B"></textarea>
+            <div class="replica-output">(empty)</div>
+            <div class="muted">Last op: <span class="replica-lastop">—</span></div>
+            <div class="timeline replica-timeline"></div>
+          </div>
+          <div class="card replica-card" data-replica="C">
+            <div class="replica-header">
+              <strong class="replica-title">Replica C</strong>
+              <span class="badge">Clock: <span class="replica-clock">0</span></span>
+              <span class="badge replica-status">Online</span>
+              <button class="replica-toggle">Go offline</button>
+            </div>
+            <textarea rows="3" placeholder="Edit as replica C"></textarea>
+            <div class="replica-output">(empty)</div>
+            <div class="muted">Last op: <span class="replica-lastop">—</span></div>
+            <div class="timeline replica-timeline"></div>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <strong>Inspector</strong>
+            <div class="row" style="margin-top: 8px;">
+              <label>Inspect replica</label>
+              <select id="inspector-replica">
+                <option value="A">Replica A (id 1)</option>
+                <option value="B">Replica B (id 2)</option>
+                <option value="C">Replica C (id 3)</option>
+              </select>
+            </div>
+            <div class="muted" style="margin-top: 8px;">RGA tree</div>
+            <div id="tree" class="tree"></div>
+            <div class="muted" style="margin-top: 8px;">Linked list</div>
+            <pre id="list-view"></pre>
+          </div>
+          <div class="card">
+            <strong>Global op timeline</strong>
+            <label class="row" style="margin-top: 8px;"><input id="raw-toggle" type="checkbox" /> Show raw JSON</label>
+            <div id="op-log" class="timeline"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <strong>Scenario library</strong>
+          <div class="grid" style="margin-top: 12px;">
+            <div class="card">
+              <strong>1. Sequential inserts</strong>
+              <div class="muted" style="margin-top: 6px;">A inserts H → i → ! while B, C observe.</div>
+              <div class="muted">Expected: all replicas converge to "Hi!"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="normal-seq" data-action="run">Run</button>
+                <button data-scenario="normal-seq" data-action="step">Step</button>
+                <button data-scenario="normal-seq" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>2. Late join insert</strong>
+              <div class="muted" style="margin-top: 6px;">A inserts H, i. B joins later and inserts !.</div>
+              <div class="muted">Expected: all replicas converge to "Hi!"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="normal-fork" data-action="run">Run</button>
+                <button data-scenario="normal-fork" data-action="step">Step</button>
+                <button data-scenario="normal-fork" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>3. Concurrent appends</strong>
+              <div class="muted" style="margin-top: 6px;">A inserts H, B inserts i, C inserts ! out of order.</div>
+              <div class="muted">Expected: deterministic ordering → "Hi!"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="avg-concurrent-appends" data-action="run">Run</button>
+                <button data-scenario="avg-concurrent-appends" data-action="step">Step</button>
+                <button data-scenario="avg-concurrent-appends" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>4. Concurrent delete + insert</strong>
+              <div class="muted" style="margin-top: 6px;">A deletes H while B/C insert after H.</div>
+              <div class="muted">Expected: tombstone skipped → "!?"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="avg-delete-insert" data-action="run">Run</button>
+                <button data-scenario="avg-delete-insert" data-action="step">Step</button>
+                <button data-scenario="avg-delete-insert" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>5. Same position inserts</strong>
+              <div class="muted" style="margin-top: 6px;">A/B/C insert after HEAD simultaneously.</div>
+              <div class="muted">Expected: ordered by id → "ABC"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="worst-same-position" data-action="run">Run</button>
+                <button data-scenario="worst-same-position" data-action="step">Step</button>
+                <button data-scenario="worst-same-position" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>6. Duplicate delivery</strong>
+              <div class="muted" style="margin-top: 6px;">A inserts X; op duplicated to B.</div>
+              <div class="muted">Expected: only one X (idempotent)</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="worst-duplicate" data-action="run">Run</button>
+                <button data-scenario="worst-duplicate" data-action="step">Step</button>
+                <button data-scenario="worst-duplicate" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>7. Offline edit + merge</strong>
+              <div class="muted" style="margin-top: 6px;">B goes offline, edits, then reconnects.</div>
+              <div class="muted">Expected: all replicas converge to "Hi!"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="edge-offline" data-action="run">Run</button>
+                <button data-scenario="edge-offline" data-action="step">Step</button>
+                <button data-scenario="edge-offline" data-action="reset">Reset</button>
+              </div>
+            </div>
+            <div class="card">
+              <strong>8. Delete parent before child arrives</strong>
+              <div class="muted" style="margin-top: 6px;">A deletes H, then B inserts i after H.</div>
+              <div class="muted">Expected: child survives → "i"</div>
+              <div class="row" style="margin-top: 8px;">
+                <button data-scenario="edge-delete-parent" data-action="run">Run</button>
+                <button data-scenario="edge-delete-parent" data-action="step">Step</button>
+                <button data-scenario="edge-delete-parent" data-action="reset">Reset</button>
+              </div>
+            </div>
+          </div>
+          <div class="muted" style="margin-top: 8px;" id="scenario-status"></div>
+        </div>
+      </div>
+
+      <div id="tab-realtime" class="tab-panel active">
+        <div class="card">
+          <strong>Realtime Simulation</strong>
+          <div class="muted" style="margin-top: 8px;">
+            Each browser tab acts as one replica. Type here and observe convergence in other tabs.
+          </div>
+          <div class="presence" style="margin-top: 8px;">
+            <span class="presence-dot" style="background:#22c55e"></span> Online
+            <span class="presence-dot" style="background:#ef4444"></span> Offline
+          </div>
+          <div class="presence" style="margin-top: 8px;" id="presence-bar"></div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <strong id="live-title">Replica</strong>
+            <div class="row" style="margin-top: 8px;">
+              <span class="badge" id="live-clock">Clock: 0</span>
+              <span class="badge" id="live-connection">Online</span>
+              <button id="live-toggle">Go offline</button>
+            </div>
+            <textarea id="live-editor" rows="6" placeholder="Type here as your replica"></textarea>
+            <div class="replica-output" id="live-output">(empty)</div>
+            <div class="muted">Last op: <span id="live-lastop">—</span></div>
+          </div>
+
+          <div class="card">
+            <strong>Live RGA tree</strong>
+            <div id="live-tree" class="tree"></div>
+          </div>
+
+          <div class="grid">
+            <div class="card">
+              <strong>Live op timeline</strong>
+              <label class="row" style="margin-top: 8px;"><input id="live-raw-toggle" type="checkbox" /> Show raw JSON</label>
+              <div id="live-log" class="timeline"></div>
+            </div>
+
+            <div class="card">
+              <strong>Live events</strong>
+              <div id="live-events" class="timeline"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="client.js"></script>
+  </body>
+</html>
