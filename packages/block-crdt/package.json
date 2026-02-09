@@ -6,7 +6,8 @@
   "scripts": {
     "build": "tsc",
     "test": "vitest run",
-    "test:watch": "vitest --watch"
+    "test:watch": "vitest --watch",
+    "test:debug": "vitest rga.test.mts --inspect-brk=127.0.0.1:3000 --no-file-parallelism"
   },
   "devDependencies": {
     "typescript": "^5.9.3"

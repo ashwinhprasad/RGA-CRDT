@@ -102,43 +102,22 @@ export abstract class Block {
   ) {}
 
   abstract toJSON(): unknown;
-
-  toJson() {
-    return this.toJSON();
-  }
 }
 
 
-export class HeadingBlock extends Block {
-  public level: number;
-  public content: RGA<string>;
-
-  constructor(level: number) {
-    super("heading");
-    this.level = level;
-    this.content = new RGA<string>();
-  }
-
-  toJSON() {
-    return {
-      type: this.type,
-      level: this.level,
-      content: this.content.toJSON(),
-      text: this.content.visible().join("")
-    };
-  }
-}
-
-
-export class ParagraphBlock extends Block {
+/**
+ * Base class for text-based blocks (paragraphs and headings).
+ * Manages text content using an RGA for conflict-free concurrent editing.
+ */
+export abstract class TextBlock extends Block {
   /**
-   * String represents a character in the paragraph. Not an actual string.
+   * String represents a character in the block. Not an actual string.
    * Am using string type since typescript doesn't have a built-in char type.
    */
   public content: RGA<string>;
 
-  constructor() {
-    super("paragraph");
+  constructor(type: BlockType) {
+    super(type);
     this.content = new RGA<string>();
   }
 
@@ -171,21 +150,43 @@ export class ParagraphBlock extends Block {
   toString(): string {
     return this.content.visible().join("");
   }
-
-    toJSON() {
-      return {
-        type: this.type,
-        content: this.content.toJSON(),
-        text: this.toString()
-      };
-    }
 }
 
-// export class ListItem {
-//   constructor(
-//     public content: RGA<string>
-//   ) {}
-// }
+
+export class HeadingBlock extends TextBlock {
+  public level: number;
+
+  constructor(level: number) {
+    super("heading");
+    this.level = level;
+  }
+
+  toJSON() {
+    return {
+      type: this.type,
+      level: this.level,
+      content: this.content.toJSON(),
+      text: this.toString()
+    };
+  }
+}
+
+
+export class ParagraphBlock extends TextBlock {
+  constructor() {
+    super("paragraph");
+  }
+
+  toJSON() {
+    return {
+      type: this.type,
+      content: this.content.toJSON(),
+      text: this.toString()
+    };
+  }
+}
+
+
 export class ListItem {
   public content: RGA<string> = new RGA<string>();
 
@@ -196,10 +197,6 @@ export class ListItem {
       content: this.content.toJSON(),
       text: this.content.visible().join("")
     };
-  }
-
-  toJson() {
-    return this.toJSON();
   }
 }
 
@@ -278,18 +275,10 @@ export class TableRow {
   toJSON() {
     return { type: "row" };
   }
-
-  toJson() {
-    return this.toJSON();
-  }
 }
 export class TableColumn {
   toJSON() {
     return { type: "column" };
-  }
-
-  toJson() {
-    return this.toJSON();
   }
 }
 
@@ -309,10 +298,6 @@ export class TableCell {
       content: this.content.toJSON(),
       text: this.content.visible().join("")
     };
-  }
-
-  toJson() {
-    return this.toJSON();
   }
 }
 
@@ -342,10 +327,6 @@ export class TableCellStore {
     }
 
     return cells;
-  }
-
-  toJson() {
-    return this.toJSON();
   }
 }
 

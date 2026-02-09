@@ -57,10 +57,6 @@ export class RGAElement<T = string> {
             )
         };
     }
-
-    toJson() {
-        return this.toJSON();
-    }
 }
 
 
@@ -68,6 +64,9 @@ export class RGA<T = string> {
 
     public head: RGAElement<T>;
     private elementMap = new Map<string, RGAElement<T>>();
+
+    private pendingByAfter = new Map<string, RGAElement<T>[]>();
+    private pendingIds = new Set<string>();
   
     constructor() {
         this.head = new RGAElement<T>("HEAD", null as any, "HEAD");
@@ -101,9 +100,38 @@ export class RGA<T = string> {
     }
 
     getElement(id: CRDTId): RGAElement<T> | undefined {
-    return this["elementMap"].get(JSON.stringify(id));
+        return this["elementMap"].get(JSON.stringify(id));
     }
 
+
+    private enqueuePending(parentKey: string, element: RGAElement<T>) {
+        const elKey = JSON.stringify(element.id);
+        if (this.pendingIds.has(elKey)) return;
+
+        const list = this.pendingByAfter.get(parentKey);
+        if (list) list.push(element);
+        else this.pendingByAfter.set(parentKey, [element]);
+
+        this.pendingIds.add(elKey);
+    }
+
+
+    private drainPendingForParent(parentIdKey: string) {
+        const pending = this.pendingByAfter.get(parentIdKey);
+        if (!pending || pending.length === 0) return;
+
+        // Remove the bucket first to prevent re-entrancy loops
+        this.pendingByAfter.delete(parentIdKey);
+
+        // Optional: deterministic replay order (not strictly necessary because parent.insertChild sorts)
+        pending.sort((a, b) => compareIds(a.id, b.id));
+
+        for (const child of pending) {
+        this.pendingIds.delete(JSON.stringify(child.id));
+        // This will either insert (if parent now exists) or re-queue (if it depends on something else)
+        this.insertRGAElement(child);
+        }
+    }
 
 
     insertRGAElement(element: RGAElement<T>) {
@@ -111,11 +139,20 @@ export class RGA<T = string> {
         if (this.elementMap.has(key)) return;
 
         const parentKey = JSON.stringify(element.after);
+
+
+        if (element.after !== "HEAD" && !this.elementMap.has(parentKey)) {
+            this.enqueuePending(parentKey, element);
+            return;
+        }
+
         const parent =
         this.elementMap.get(parentKey) ?? this.head;
 
         parent.insertChild(element);
         this.elementMap.set(key, element);
+
+        this.drainPendingForParent(key);
     }
 
 
@@ -159,10 +196,4 @@ export class RGA<T = string> {
     toJSON(): RGAJSON<T> {
         return this.head.toJSON();
     }
-
-    toJson() {
-        return this.toJSON();
-    }
-
-
 }
