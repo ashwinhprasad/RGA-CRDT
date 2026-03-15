@@ -540,6 +540,14 @@ export class CRDTDocument {
    * This is used both for local operations and operations received from other replicas.
    */
   apply(op: CRDTOp): void {
+    // Lamport clock update: when a remote op arrives with a higher counter,
+    // advance our clock past it so future local ops are causally after it.
+    // For local ops, nextId() already set this.clock = op.id[1], so this is a no-op.
+    const opCounter = Number(op.id[1]);
+    if (opCounter > this.clock) {
+      this.clock = opCounter + 1;
+    }
+
     switch (op.kind) {
       case "insert_block": {
         this.blocks.insertRGAElement(

@@ -687,6 +687,30 @@ describe('CRDTDocument - Three-way Merge', () => {
     carol = alice.fork(3);
   });
 
+  it('should update local clock to remote op counter + 1 when applying remote op', () => {
+    // Bob performs a lot of operations
+    const ops = [];
+    let lastOp;
+    for (let i = 0; i < 20; i++) {
+      lastOp = bob.insertParagraphBlock();
+      ops.push(lastOp);
+    }
+    // Bob's clock should now be 20
+    expect(bob["clock"]).toBe(20);
+
+    // Alice's clock should be 0
+    expect(alice["clock"]).toBe(0);
+
+    // Apply Bob's last op to Alice
+    if (!lastOp) throw new Error("lastOp is undefined");
+    alice.apply(lastOp);
+
+    // Alice's clock should be set to lastOp's counter (20) + 1 = 21
+    // lastOp.id = [replicaId, counter]
+    const remoteCounter = Number(lastOp.id[1]);
+    expect(alice["clock"]).toBe(remoteCounter + 1);
+  });
+
   it('should merge edits from three replicas', () => {
     const blockOp = alice.insertParagraphBlock();
     bob.apply(blockOp);
